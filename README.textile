@@ -7,11 +7,15 @@ h2. Usage
 
 <pre>
    puppet-sync -b BRANCH [options]
-    -b, --branch BRANCH              Mandatory, specify the git branch to clone.
-    -s, --puppetmaster HOST          Specify the host to deploy to.
-    -d, --destination DIR            Specify the directory to deploy to.
+   puppet-sync -s [options]
+    -b, --branch BRANCH              Specify the git branch to clone.
+    -s, --stdin                      Retrieve branch and revision information from stdin.
+    -p, --puppetmaster HOST          Specify the host to deploy to.
+    -d, --deploy DIR                 Specify the directory to deploy to.
+    -D, --delete                     Remove the specified branch from the deployment directory.
     -r, --repository URL             Git url for the repository.
     -i, --identity FILE              Identity file (key) for connecting to the puppetmaster.
+    -W, --password STRING            Password for connecting to the puppetmaster.
     -l, --login USER                 Login name for connecting to the puppetmaster.
     -t, --tmp DIR                    Specify what directory to use for temporary files.
     Common options:

@@ -25,6 +25,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+require 'fileutils'
 require 'optparse'
 require 'ostruct'
 require 'tmpdir'
@@ -32,6 +33,9 @@ require 'tmpdir'
 class PuppetSync
 
   class UpdateBranchDestinationDoesntExist < StandardError
+  end
+
+  class RemoveBranchDestinationDoesntExist < StandardError
   end
 
   VERSION = "1.2-pdxcat1"
@@ -43,33 +47,21 @@ class PuppetSync
 
     # Default Options
     @options.gitcmd = "/usr/bin/git"
-    @options.tmp = "/var/tmp"
-    @options.branch = "master"
-    @options.verbose = "-q"
+    @options.verbose = false
     @options.passenger = false
-    @options.repository = "git+ssh://psync@git/srv/git/puppet.git"
-    @options.destination = "/etc/puppet/environments"
+    @options.deploy = "/etc/puppet/environments"
+
+    # Ensure nothing unexpected happens because of environment variables
+    ENV.delete('GIT_DIR')
   end
 
   def run
     if parsed_options? && arguments_valid?
-      puts "----------------------------------------------------------------- Puppet-Sync"
-      puts " Branch      : #{@options.branch}"
-      puts " Destination : #{@options.puppetmaster}:#{@options.destination}"
-      puts " Repository  : #{@options.repository}"
-      puts "-----------------------------------------------------------------------------\n"
-
-      begin
-        cmd = self.update_branch
-        execute(cmd)
-      rescue UpdateBranchDestinationDoesntExist
-        cmd = self.sync_branch
-        execute(cmd)
+      if @options.stdin
+        self.run_stdin
+      elsif @options.branch
+        self.run_branch
       end
-
-      cmd = self.finalize
-      execute(cmd)
-
     else
       puts "---------------------------------------------------------------- Puppet-Sync"
       puts " ERROR: Invalid options set for puppet-sync."
@@ -77,64 +69,128 @@ class PuppetSync
     end
   end
 
-  def execute(cmd)
-    puts "Executing: #{cmd}" if @options.verbose == ""
-    %x{#{cmd}}
+  def run_branch
+    puts "----------------------------------------------------------------- Puppet-Sync"
+    puts " Branch      : #{@options.branch}"
+    puts " Destination : #{@options.puppetmaster}:#{@options.deploy}"
+    puts " Repository  : #{@options.repository}"
+    puts "-----------------------------------------------------------------------------\n"
+
+    begin
+      if @options.remove
+        self.remove_branch(@options.branch)
+      else
+        self.update_branch(@options.branch)
+      end
+    rescue UpdateBranchDestinationDoesntExist
+      self.sync_branch(@options.branch)
+    rescue RemoveBranchDestinationDoesntExist
+      puts "ERROR: cannot remove branch from #{deployment_directory(@options.branch)}; does not exist."
+    end
+
+    self.finalize
   end
 
-  def sync_branch
-    git     = @options.gitcmd
-    branch  = @options.branch
-    deploy  = deployment_directory(@options.branch)
+  def run_stdin
+    STDIN.each_line do |line|
+      oldrev, newrev, refname = line.split(" ")
 
-    Dir.tmpdir do |tmpdir|
-      execute("#{git} clone #{@options.verbose} #{@options.repository} #{tmpdir}")
-      Dir.chdir(tmpdir) do
-
-        # configure a username and email address - some git cmd might fail otherwise
-        execute("#{git} config --add user.name  'Puppet-Sync-Script'")
-        execute("#{git} config --add user.email '#{@options.login}@#{@options.puppetmaster}'")
-
-        # checkout into a local branch rather than a detached HEAD
-        execute("#{git} checkout #{@options.verbose} -b deploy origin/#{branch}")
-
-        # mark the repository as managed by PuppetSync
-        execute("touch .puppet-sync-stamp")
-
+      branch = refname.sub(%r{^refs/heads/(.*$)}) { $1 }
+      if branch =~ /[\W-]/
+        puts %Q{Branch "#{branch}" contains non-word characters, ignoring it.}
+        next
       end
 
-      if File.directory?(deploy)
-        if File.writable?(deploy)
-          if File.exists?("#{deploy}/.puppet-sync-stamp")
-            execute("rm -rf #{deploy}")
-          else
-            raise "ERROR: Environment directory is not a copy managed by puppet-sync in: #{deploy}. Try to remove it manually."
-          end
+      begin
+        if newrev.match(/^0+$/)
+          self.remove_branch(branch)
         else
-          raise "ERROR: Environment directory is not writeable."
+          self.update_branch(branch)
         end
+      rescue UpdateBranchDestinationDoesntExist
+        self.sync_branch(branch)
+      rescue RemoveBranchDestinationDoesntExist
+        puts "ERROR: cannot remove branch from #{deployment_directory(branch)}; does not exist."
       end
-
-      execute("mv #{tmpdir} #{deploy}")
 
     end
   end
 
-  def update_branch
-    git    = @options.gitcmd
-    branch = @options.branch
-    deploy = deployment_directory(@options.branch)
+  def execute(cmd)
+    puts "Executing: #{cmd}" if @options.verbose
+    %x{#{cmd}}
+  end
+
+  def sync_branch(branch)
+    puts "running sync_branch" if @options.verbose
+
+    deploy = deployment_directory(branch)
+
+    if File.directory?(deploy)
+      unless File.writable?(deploy)
+        raise "ERROR: Environment directory is not writeable."
+      end
+
+      if File.exists?("#{deploy}/.puppet-sync-stamp")
+        FileUtils.remove_dir(deploy)
+      else
+        raise "ERROR: Environment directory is not a copy managed by puppet-sync in: #{deploy}. Try to remove it manually."
+      end
+    end
+
+    execute("#{git(:clone)} #{@options.repository} #{deploy} -b #{branch}")
+
+    Dir.chdir(deploy) do
+      execute("#{git(:checkout)} origin/#{branch}")
+      execute("#{git(:submodule)} update --init --recursive")
+
+      # configure a username and email address - some git cmd might fail otherwise
+      execute("#{git(:config)} --add user.name 'Puppet-Sync-Script'")
+      execute("#{git(:config)} --add user.email '#{@options.login}@#{@options.puppetmaster}'")
+
+      # mark the repository as managed by PuppetSync
+      execute("touch .puppet-sync-stamp")
+
+    end
+  end
+
+  def update_branch(branch)
+    puts "running update_branch" if @options.verbose
+
+    deploy = deployment_directory(branch)
 
     unless File.exists?("#{deploy}/.puppet-sync-stamp")
       raise UpdateBranchDestinationDoesntExist, "Cannot update branch."
     end
 
     Dir.chdir(deploy) do
-      execute("#{git} fetch #{@options.verbose} origin")
-      execute("#{git} reset #{@options.verbose} --hard")
-      execute("#{git} checkout #{@options.verbose} origin/#{branch}")
-      execute("#{git} clean #{@options.verbose} -d -x -f")
+      execute("#{git(:fetch)} origin")
+      execute("#{git(:reset)} --hard")
+      execute("#{git(:checkout)} origin/#{branch}")
+      execute("#{git(:submodule)} update --init --recursive")
+      execute("#{git(:clean)} -d -x -f")
       execute("touch .puppet-sync-stamp")
+    end
+  end
+
+  def remove_branch(branch)
+    puts "running remove_branch" if @options.verbose
+    deploy = deployment_directory(branch)
+    if File.exists?("#{deploy}/.puppet-sync-stamp")
+      FileUtils.remove_dir(deploy)
+      puts "#{deploy} removed." if @options.verbose
+    else
+      raise RemoveBranchDestinationDoesntExist, "Cannot remove branch."
+    end
+  end
+
+  def git(command)
+    @gitverbose ||= @options.verbose ? '--quiet' : ''
+    case command.to_sym
+    when :config
+      %Q{git #{command.to_s}}
+    else  
+      %Q{git #{command.to_s} #{@gitverbose} }
     end
   end
 
@@ -151,9 +207,9 @@ class PuppetSync
   #
   def deployment_directory(branch)
     if branch == "master"
-      return "#{@options.destination}/production"
+      return "#{@options.deploy}/production"
     else
-      return "#{@options.destination}/#{branch}"
+      return "#{@options.deploy}/#{branch}"
     end
   end
 
@@ -165,14 +221,24 @@ class PuppetSync
 
     opts.on('-b', '--branch BRANCH', 'Mandatory, specify the git branch to clone.') do |branch|
       @options.branch = branch
+      raise "ERROR: --branch and --stdin are incompatible arguments." if @options.stdin
     end
 
-    opts.on('-s', '--puppetmaster HOST', 'Specify the host to deploy to.') do |host|
+    opts.on('-s', '--stdin', 'Retrieve branch and revision information from stdin.') do
+      @options.stdin = true
+      raise "ERROR: --branch and --stdin are incompatible arguments." if @options.branch
+    end
+
+    opts.on('-p', '--puppetmaster HOST', 'Specify the host to deploy to.') do |host|
       @options.puppetmaster = host
     end
 
-    opts.on('-d', '--destination DIR', 'Specify the directory which will be deploy to.') do |dest|
-      @options.destination = dest
+    opts.on('-d', '--deploy DIR', 'Specify the directory to deploy to.') do |deploy|
+      @options.deploy = deploy
+    end
+
+    opts.on('-D', '--delete', 'Remove the specified branch from the deployment directory.') do
+      @options.remove = true
     end
 
     opts.on('-r', '--repository URL', 'Git url for the repository.') do |repo|
@@ -187,13 +253,9 @@ class PuppetSync
       @options.login = login
     end
 
-    opts.on('-t', '--tmp DIR', 'Specify the temporary directory.') do |tmp|
-      @options.tmp = tmp
-    end
-
     opts.separator "Common options:"
     opts.on('-V', '--version', 'Display the script version.') { output_version ; exit 0; }
-    opts.on('-v', '--verbose', 'Be more verbose.') { @options.verbose = ""  }
+    opts.on('-v', '--verbose', 'Be more verbose.') { @options.verbose = true }
     opts.on_tail("-h", "--help", "Show this message") do
       puts opts
       exit
@@ -204,7 +266,7 @@ class PuppetSync
   end
 
   def arguments_valid?
-    return false unless @options.branch
+    return false unless (@options.branch or @options.stdin) and @options.repository
     true
   end
 
