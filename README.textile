@@ -8,10 +8,12 @@ h2. Usage
 <pre>
    puppet-sync -b BRANCH [options]
     -b, --branch BRANCH              Mandatory, specify the git branch to clone.
-    -t, --tmp DIR                    Specify the temporary directory.
-    -d, --destination DIR            Specify the directory which will be deploy to.
-    -r, --repository URL             Git url to the repository.
-    -p, --passenger                  Restart apache/passenger instead of puppetmaster.
+    -s, --puppetmaster HOST          Specify the host to deploy to.
+    -d, --destination DIR            Specify the directory to deploy to.
+    -r, --repository URL             Git url for the repository.
+    -i, --identity FILE              Identity file (key) for connecting to the puppetmaster.
+    -l, --login USER                 Login name for connecting to the puppetmaster.
+    -t, --tmp DIR                    Specify what directory to use for temporary files.
     Common options:
     -V, --version                    Display the script version.
     -v, --verbose                    Be more verbose.
