@@ -84,6 +84,7 @@ class PuppetSync
         git(:checkout, "origin/#{branch}")
         git(:submodule, 'update', '--init', '--recursive')
         git(:clean, '-d', '-x', '-f')
+        puts "Touch: #{STAMP}" if @options.verbose
         FileUtils.touch(STAMP)
       end
     end
