@@ -8,20 +8,14 @@ h2. Usage
 <pre>
    puppet-sync -b BRANCH [options]
    puppet-sync -s [options]
-    -b, --branch BRANCH              Specify the git branch to clone.
-    -s, --stdin                      Retrieve branch and revision information from stdin.
-    -p, --puppetmaster HOST          Specify the host to deploy to.
-    -d, --deploy DIR                 Specify the directory to deploy to.
-    -D, --delete                     Remove the specified branch from the deployment directory.
-    -r, --repository URL             Git url for the repository.
-    -i, --identity FILE              Identity file (key) for connecting to the puppetmaster.
-    -W, --password STRING            Password for connecting to the puppetmaster.
-    -l, --login USER                 Login name for connecting to the puppetmaster.
-    -t, --tmp DIR                    Specify what directory to use for temporary files.
+    -b, --branch BRANCH     Mandatory; specify the git branch to clone.
+    -d, --deploy DIR        Specify the directory to deploy to.
+    -D, --delete            Remove the specified branch from the deployment directory.
+    -r, --repository URL    Git url for the repository.
     Common options:
-    -V, --version                    Display the script version.
-    -v, --verbose                    Be more verbose.
-    -h, --help                       Show this message
+    -V, --version           Display the script version.
+    -v, --verbose           Be more verbose.
+    -h, --help              Show this message
 </pre>
 
 To sync a specific branch, to specific location, from a specific repository run the
@@ -29,7 +23,7 @@ script with the following arguments:
 
 <pre>
   puppet-sync --branch master \
-              --destination /etc/puppet/environments \
+              --deploy /etc/puppet/environments \
               --repository ssh+git://git/puppet.git
 </pre>
 
@@ -38,29 +32,39 @@ h2. Git Hook
 I usually call this script from a GIT hook. If your GIT repository is located
 on a different server as your Puppet master, you will need to ensure that
 a certain user can login to your Puppet server, without manual interactions.
+I use the "puppet" user for this purpose.
 
 <pre>
-  # create a puppet-sync user
-  useradd puppet-sync
+  # change to the user and generate a key
+  sudo -u puppet ssh-keygen -t rsa -b 4096 -f ~puppet/.ssh/id_rsa
 
-  # change to the user
-  sudo su - puppet-sync
-
-  # generate a ssh key
-  ssh-keygen -t rsa -b 4096
-
-  # copy the ssh key to your puppet master (where you have already
-  # created the puppet-sync user too ;-))
-  scp ~puppet-sync/.ssh/id_rsa.pub puppet:/home/puppet-sync/.ssh
+  # copy the public key file to your puppetmaster server (where you have already
+  # created the puppet user)
+  ssh server 'cat - >> ~puppet/.ssh/authorized_keys' < ~puppet/.ssh/id_rsa.pub
 </pre>
 
-Now you need to add the following line to the Git hook file:
+Now you need to add the following to the Git hook file:
 
 <pre>
-   # /git/puppet.git/hooks/post-update
-   #
-   branch=`echo $1 | awk -F/ {'print $3'}`
-   sudo -u puppet-sync ssh puppet /usr/local/bin/puppet-sync --branch \$branch -r ssh+git://git/puppet.git"
+  #!/bin/sh
+  # File: /git/puppet.git/hooks/post-update
 
-   exec git-update-server-info" >> /git/puppet.git/hooks/post-update
+  REPO="git@githost.cat.pdx.edu:puppet.git"
+  DEPLOY="/etc/puppet/environments"
+  SSH_ARGS="-i /path/to/privatekey"
+  PUPPETMASTER="puppet@puppetmaster.cat.pdx.edu"
+  SYNC_COMMAND="/usr/local/bin/puppet-sync"
+
+  while read oldrev newrev refname
+  do
+    BRANCH=`echo $refname | sed -n 's/^refs\/heads\///p'`
+    [ "$newrev" -eq 0 ] 2> /dev/null && DELETE='--delete' || DELETE=''
+
+    ssh $SSH_ARGS "$PUPPETMASTER" "$SYNC_COMMAND" \
+      --branch "$BRANCH" \
+      --repository "$REPO" \
+      --deploy "$DEPLOY" \
+      $DELETE
+
+  done
 </pre>

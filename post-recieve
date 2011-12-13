@@ -1,0 +1,21 @@
+#!/bin/sh
+# File: /git/puppet.git/hooks/post-update
+
+REPO="git@githost.cat.pdx.edu:puppet.git"
+DEPLOY="/etc/puppet/environments"
+SSH_ARGS="-i /path/to/privatekey"
+PUPPETMASTER="puppet@puppetmaster.cat.pdx.edu"
+SYNC_COMMAND="/usr/local/bin/puppet-sync"
+
+while read oldrev newrev refname
+do
+  BRANCH=`echo $refname | sed -n 's/^refs\/heads\///p'`
+  [ "$newrev" -eq 0 ] 2> /dev/null && DELETE='--delete' || DELETE=''
+
+  ssh $SSH_ARGS "$PUPPETMASTER" "$SYNC_COMMAND" \
+    --branch "$BRANCH" \
+    --repository "$REPO" \
+    --deploy "$DEPLOY" \
+    $DELETE
+
+done
