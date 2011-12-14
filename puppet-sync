@@ -116,11 +116,7 @@ class PuppetSync
   end
 
   def deploy_directory(branch)
-    if branch == "master"
-      return "#{@options.deploy}/production"
-    else
-      return "#{@options.deploy}/#{branch}"
-    end
+    return "#{@options.deploy}/#{branch}"
   end
 
   def parsed_options?
