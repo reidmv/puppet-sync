@@ -31,10 +31,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-require 'open3'
 require 'fileutils'
+require 'open3'
 require 'optparse'
 require 'ostruct'
+require 'socket'
 
 class PuppetSync
 
@@ -52,8 +53,16 @@ class PuppetSync
 
   def run
     unless parsed_options? && arguments_valid?
-      raise "ERROR: invalid arguments given."
+      abort "ERROR: invalid arguments given."
     end
+
+    puts ".------------------------------------------------ Puppet-Sync ---"
+    puts "| Host        : #{Socket.gethostbyname(Socket.gethostname).first}"
+    puts "| Branch      : #{@options.branch}"
+    puts "| Deploy To   : #{deploy_directory(@options.branch)}"
+    puts "| Repository  : #{@options.repository}"
+    puts "| Delete Branch" if @options.delete
+    puts "`----------------------------------------------------------------\n"
 
     self.update(@options.branch, :delete => @options.delete)
   end
