@@ -1,5 +1,5 @@
 #!/bin/sh
-# File: /git/puppet.git/hooks/post-update
+# File: /git/puppet.git/hooks/post-receive
 
 REPO="git@githost.cat.pdx.edu:puppet.git"
 DEPLOY="/etc/puppet/environments"

@@ -15,7 +15,7 @@
 # This script may be used to sync a git branch from your repository
 # to puppet master.
 #
-# Source code: http://www.github.com/pdxcat/puppet-sync
+# Source code: http://www.github.com/pdxcat/puppetsync
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
