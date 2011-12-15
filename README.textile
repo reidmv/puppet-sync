@@ -1,4 +1,4 @@
-h1. Puppet-Sync
+h1. Puppet Sync
 
 This project provides a script to synchronize you manifests from a GIT
 repository to your Puppet master.
@@ -6,8 +6,8 @@ repository to your Puppet master.
 h2. Usage
 
 <pre>
-   puppet-sync -b BRANCH [options]
-   puppet-sync -s [options]
+   puppetsync -b BRANCH [options]
+   puppetsync -s [options]
     -b, --branch BRANCH     Mandatory; specify the git branch to clone.
     -d, --deploy DIR        Specify the directory to deploy to.
     -D, --delete            Remove the specified branch from the deployment directory.
@@ -22,7 +22,7 @@ To sync a specific branch, to specific location, from a specific repository run 
 script with the following arguments:
 
 <pre>
-  puppet-sync --branch master \
+  puppetsync --branch master \
               --deploy /etc/puppet/environments \
               --repository ssh+git://git/puppet.git
 </pre>
@@ -53,7 +53,7 @@ Now you need to add the following to the Git hook file:
   DEPLOY="/etc/puppet/environments"
   SSH_ARGS="-i /path/to/privatekey"
   PUPPETMASTER="puppet@puppetmaster.cat.pdx.edu"
-  SYNC_COMMAND="/usr/local/bin/puppet-sync"
+  SYNC_COMMAND="/usr/local/bin/puppetsync"
 
   while read oldrev newrev refname
   do
