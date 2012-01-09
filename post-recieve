@@ -5,7 +5,7 @@ REPO="git@githost.cat.pdx.edu:puppet.git"
 DEPLOY="/etc/puppet/environments"
 SSH_ARGS="-i /path/to/privatekey"
 PUPPETMASTER="puppet@puppetmaster.cat.pdx.edu"
-SYNC_COMMAND="/usr/local/bin/puppet-sync"
+SYNC_COMMAND="/usr/local/bin/puppetsync"
 
 while read oldrev newrev refname
 do

@@ -40,7 +40,7 @@ require 'socket'
 class PuppetSync
 
   VERSION = "1.2-pdxcat1"
-  STAMP   = ".puppet-sync-stamp"
+  STAMP   = ".puppetsync-stamp"
 
   def initialize(arguments)
     @arguments = arguments
@@ -71,7 +71,7 @@ class PuppetSync
     deploy = deploy_directory(branch)
 
     if File.exists?(deploy) and not File.exists?("#{deploy}/#{STAMP}")
-      raise "ERROR: Environment directory is not managed by puppet-sync."
+      raise "ERROR: Environment directory is not managed by puppetsync."
     end
 
     if opts[:delete]
@@ -134,7 +134,7 @@ class PuppetSync
   def parsed_options?
     opts = OptionParser.new
 
-    opts.banner = "Usage: puppet-sync -b BRANCH [options]"
+    opts.banner = "Usage: puppetsync -b BRANCH [options]"
 
     opts.on('-b', '--branch BRANCH', 'Mandatory, specify the git branch to clone.') do |branch|
       @options.branch = branch
