@@ -4,13 +4,16 @@
 #
 # Credits:
 #
-#   Stefan Schlesinger:
+#   Stefan Schlesinger: We forked his project
 #   https://github.com/sts/puppet-sync
 #
-#   Adrien Thebo:
+#   Adrien Thebo: His post instigated the motivation to redo our setup in ruby
 #   http://puppetlabs.com/blog/git-workflow-and-puppet-environments
 #
-# Puppet-Sync
+#   Hunter Haugen: The first guy to blog about dynamic branch -> environment
+#   http://hunnur.com/blog/2010/10/dynamic-git-branch-puppet-environments/
+#
+# Puppet Sync
 #
 # This script may be used to sync a git branch from your repository
 # to puppet master.
