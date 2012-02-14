@@ -54,20 +54,28 @@ class PuppetSync
     ENV.delete('GIT_DIR')
   end
 
+  def output lines, prefix = '| '
+    [lines].flatten.each do |line|
+      puts prefix + line
+    end
+  end
+
   def run
     unless parsed_options? && arguments_valid?
       abort "ERROR: invalid arguments given."
     end
 
-    puts ".------------------------------------------------ Puppet-Sync ---"
+    deploy = deploy_directory(@options.branch)
+    puts ".------------------------------------------------- PuppetSync ---"
     puts "| Host        : #{Socket.gethostbyname(Socket.gethostname).first}"
     puts "| Branch      : #{@options.branch}"
-    puts "| Deploy To   : #{deploy_directory(@options.branch)}"
+    puts "| Deploy To   : #{deploy}" unless @options.delete
+    puts "| Delete From : #{deploy}" if @options.delete
     puts "| Repository  : #{@options.repository}"
-    puts "| Delete Branch" if @options.delete
-    puts "`----------------------------------------------------------------\n"
 
     self.update(@options.branch, :delete => @options.delete)
+
+    puts "`----------------------------------------------------------------\n"
   end
 
   def update(branch, opts={})
@@ -121,13 +129,20 @@ class PuppetSync
 
   def execute(command)
     puts "Executing: #{command}" if @options.verbose
-    result = Array.new
+    result = {:stdout => [], :stderr => [], :all => []}
     Open3.popen3(command) do |stdin, stdout, stderr|
-      result += stdout.readlines + stderr.readlines
-      puts stderr.readlines
+      result[:stdout] += stdout.readlines
+      result[:stderr] += stderr.readlines
+      result[:all] += result[:stdout] + result[:stderr]
     end
-    puts result if @options.verbose
-    return result.join
+
+    if @options.verbose
+      puts result[:all]
+    else
+      puts result[:stderr]
+    end
+
+    return result[:all].join
   end
 
   def deploy_directory(branch)
