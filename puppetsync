@@ -137,9 +137,9 @@ class PuppetSync
     end
 
     if @options.verbose
-      puts result[:all]
+      output result[:all]
     else
-      puts result[:stderr]
+      output result[:stderr]
     end
 
     return result[:all].join
