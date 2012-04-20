@@ -18,7 +18,7 @@
 # This script may be used to sync a git branch from your repository
 # to puppet master.
 #
-# Source code: http://www.github.com/pdxcat/puppetsync
+# Source code: http://www.github.com/pdxcat/puppet-sync
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ require 'socket'
 class PuppetSync
 
   VERSION = "1.2-pdxcat1"
-  STAMP   = ".puppetsync-stamp"
+  STAMP   = ".puppet-sync-stamp"
 
   def initialize(arguments)
     @arguments = arguments
@@ -82,7 +82,7 @@ class PuppetSync
     deploy = deploy_directory(branch)
 
     if File.exists?(deploy) and not File.exists?("#{deploy}/#{STAMP}")
-      raise "ERROR: Environment directory is not managed by puppetsync."
+      raise "ERROR: Environment directory is not managed by puppet-sync."
     end
 
     if opts[:delete]
@@ -152,7 +152,7 @@ class PuppetSync
   def parsed_options?
     opts = OptionParser.new
 
-    opts.banner = "Usage: puppetsync -b BRANCH [options]"
+    opts.banner = "Usage: puppet-sync -b BRANCH [options]"
 
     opts.on('-b', '--branch BRANCH', 'Mandatory, specify the git branch to clone.') do |branch|
       @options.branch = branch
