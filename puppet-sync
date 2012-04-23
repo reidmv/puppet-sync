@@ -42,7 +42,7 @@ require 'socket'
 
 class PuppetSync
 
-  VERSION = "1.2-pdxcat1"
+  VERSION = "1.2-pdxcat2"
   STAMP   = ".puppet-sync-stamp"
 
   def initialize(arguments)
@@ -109,10 +109,9 @@ class PuppetSync
         git(:submodule, 'foreach --recursive "git clean -d -x -f"')
         git(:submodule, 'update --init --recursive')
         git(:clean, '-d -x -f')
-
-        untracked_files = %x{git ls-files --other --exclude-standard}
-        untracked_files.each do |path|
-          FileUtils.remove_entry_secure(path)
+        git(:"ls-files", '--other --exclude-standard').each do |path|
+          output "Recursively deleting untracked file(s) #{path.chomp}" if @options.verbose
+          FileUtils.remove_entry_secure(path.chomp)
         end
 
         output "Touch: #{STAMP}" if @options.verbose
@@ -128,7 +127,7 @@ class PuppetSync
     @gitverbose ||= @options.verbose ? '' : '--quiet'
     command = ["git #{subcommand.to_s} #{@gitverbose}", args].flatten.compact.join(' ')
     case subcommand.to_sym
-    when :config
+    when :config, :"ls-files"
       execute(command.sub(@gitverbose, ''))
     else
       execute(command)
