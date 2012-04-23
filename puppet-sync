@@ -55,8 +55,10 @@ class PuppetSync
   end
 
   def output lines, prefix = '| '
-    [lines].flatten.each do |line|
-      puts prefix + line
+    [lines].flatten.each do |record|
+      record.split("\n").each do |line|
+        puts prefix + line
+      end
     end
   end
 
@@ -66,16 +68,16 @@ class PuppetSync
     end
 
     deploy = deploy_directory(@options.branch)
-    puts ".------------------------------------------------- PuppetSync ---"
-    puts "| Host        : #{Socket.gethostbyname(Socket.gethostname).first}"
-    puts "| Branch      : #{@options.branch}"
-    puts "| Deploy To   : #{deploy}" unless @options.delete
-    puts "| Delete From : #{deploy}" if @options.delete
-    puts "| Repository  : #{@options.repository}"
+    output "---------------------------------------------- PuppetSync ---", ".-"
+    output "Host        : #{Socket.gethostbyname(Socket.gethostname).first}"
+    output "Branch      : #{@options.branch}"
+    output "Deploy To   : #{deploy}" unless @options.delete
+    output "Delete From : #{deploy}" if @options.delete
+    output "Repository  : #{@options.repository}"
 
     self.update(@options.branch, :delete => @options.delete)
 
-    puts "`----------------------------------------------------------------\n"
+    output "-------------------------------------------------------------\n", "`-"
   end
 
   def update(branch, opts={})
@@ -87,13 +89,13 @@ class PuppetSync
 
     if opts[:delete]
       FileUtils.remove_dir(deploy) if File.exists?(deploy)
-      puts "Deleting: #{deploy}" if @options.verbose
+      output "Deleting: #{deploy}" if @options.verbose
     else
       unless File.directory?(deploy)
         clone_output = git(:clone, @options.repository, deploy, '-b', branch)
         if clone_output.match(/using HEAD instead$/)
           FileUtils.remove_dir(deploy) if File.exists?(deploy)
-          puts "Deleting: #{deploy}" if @options.verbose
+          output "Deleting: #{deploy}" if @options.verbose
           raise "ERROR: unable to clone from branch #{branch}"
         end
       end
@@ -107,13 +109,19 @@ class PuppetSync
         git(:submodule, 'foreach --recursive "git clean -d -x -f"')
         git(:submodule, 'update --init --recursive')
         git(:clean, '-d -x -f')
-        puts "Touch: #{STAMP}" if @options.verbose
+
+        untracked_files = %x{git ls-files --other --exclude-standard}
+        untracked_files.each do |path|
+          FileUtils.remove_entry_secure(path)
+        end
+
+        output "Touch: #{STAMP}" if @options.verbose
         FileUtils.touch(STAMP)
       end
     end
   rescue => exception
-    puts exception.message
-    puts exception.backtrace if @options.verbose
+    output exception.message
+    output exception.backtrace if @options.verbose
   end
 
   def git(subcommand, *args)
@@ -128,7 +136,7 @@ class PuppetSync
   end
 
   def execute(command)
-    puts "Executing: #{command}" if @options.verbose
+    output "Executing: #{command}" if @options.verbose
     result = {:stdout => [], :stderr => [], :all => []}
     Open3.popen3(command) do |stdin, stdout, stderr|
       result[:stdout] += stdout.readlines
