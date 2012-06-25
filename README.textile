@@ -12,6 +12,9 @@ h2. Usage
     -d, --deploy DIR        Specify the directory to deploy to.
     -D, --delete            Remove the specified branch from the deployment directory.
     -r, --repository URL    Git url for the repository.
+    -s, --submodules-enabled SUBMODULES Comma-separated list of submodules to
+                                        update. If not specified, all submodules
+                                        in the repo will be updated.
     Common options:
     -V, --version           Display the script version.
     -v, --verbose           Be more verbose.

@@ -104,10 +104,14 @@ class PuppetSync
         git(:fetch, 'origin')
         git(:reset, '--hard')
         git(:checkout, "origin/#{branch}")
-        git(:submodule, 'sync')
+        git(:submodule, 'sync', @options.submodules)
         git(:submodule, 'foreach --recursive "git checkout -f HEAD"')
         git(:submodule, 'foreach --recursive "git clean -d -x -f"')
-        git(:submodule, 'update --init --recursive')
+        if @options.submodules
+          git(:submodule, 'update --init', @options.submodules)
+        else
+          git(:submodule, 'update --init --recursive')
+        end
         git(:clean, '-d -x -f')
         git(:"ls-files", '--other --exclude-standard').each do |path|
           output "Recursively deleting untracked file(s) #{path.chomp}" if @options.verbose
@@ -175,6 +179,10 @@ class PuppetSync
 
     opts.on('-r', '--repository URL', 'Git url for the repository.') do |repo|
       @options.repository = repo
+    end
+
+    opts.on('-s', '--submodules-enabled SUBMODULES', 'Comma-seperated list of submodule paths to enable.') do |paths|
+      @options.submodules = paths.split(',').join(' ')
     end
 
     opts.separator "Common options:"
